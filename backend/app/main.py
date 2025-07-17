@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
 from .core.database import Base, engine
-from .api import auth, projects, targets
+from .api import auth, projects
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -27,7 +27,6 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(projects.router, prefix=settings.API_V1_STR)
-app.include_router(targets.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():

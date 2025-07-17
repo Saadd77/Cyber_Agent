@@ -13,7 +13,7 @@ class BaseAgent(ABC):
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
         self.session_id = str(uuid.uuid4())
-        self.engine_type = "rule_based"
+        # Remove engine_type parameter since it's no longer used
         
     @abstractmethod
     async def validate_target(self, target: str) -> bool:
@@ -27,9 +27,12 @@ class BaseAgent(ABC):
     
     def format_results(self, raw_results: Dict[str, Any]) -> Dict[str, Any]:
         """Format results with confidence scores and recommendations"""
+        # Determine engine type based on agent type
+        engine_type = "rule_based" if self.agent_type == AgentType.NETWORK_SCANNER else "ai_based"
+        
         return {
             "agent_type": self.agent_type.value,
-            "engine_type": self.engine_type,
+            "engine_type": engine_type,
             "session_id": self.session_id,
             "timestamp": datetime.utcnow().isoformat(),
             "results": raw_results,
