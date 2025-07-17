@@ -1,150 +1,323 @@
 import React, { useState } from 'react';
-import { Target, Globe, Server, Eye, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Shield, Eye, EyeOff, Lock, Mail, User, Terminal, CheckCircle } from 'lucide-react';
+import { useProject } from '../context/ProjectContext';
+import { targetsAPI } from '../services/api';
+import { LoadingSpinner } from './common/LoadingSpinner';
 
-interface TargetPanelProps {
-  currentTarget: string;
-  setCurrentTarget: (target: string) => void;
-  testType: string;
-  setTestType: (type: string) => void;
-  isConnected: boolean;
-  setIsConnected: (connected: boolean) => void;
+interface SignupPageProps {
+  onSignup: (userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+  }) => void;
+  currentProject: any;
 }
 
-export const TargetPanel: React.FC<TargetPanelProps> = ({
-  currentTarget,
-  setCurrentTarget,
-  testType,
-  setTestType,
-  isConnected,
-  setIsConnected
-}) => {
-  const [targetType, setTargetType] = useState<'website' | 'ip'>('website');
+export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, currentProject }) => {
+  const { loadTargets } = useProject();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-  const testTypes = [
-    {
-      id: 'network',
-      label: 'Network Penetration',
-      icon: Server,
-      description: 'Scan ports, services, and network vulnerabilities',
-      color: 'text-blue-400'
-    },
-    {
-      id: 'web',
-      label: 'Web Penetration',
-      icon: Globe,
-      description: 'Test web applications for security flaws',
-      color: 'text-purple-400'
-    },
-    {
-      id: 'classify',
-      label: 'Website Classification',
-      icon: Eye,
-      description: 'Analyze and classify website content',
-      color: 'text-orange-400'
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const validatePassword = (password: string) => {
+    const requirements = [
+      { test: password.length >= 8, text: 'At least 8 characters' },
+      { test: /[A-Z]/.test(password), text: 'One uppercase letter' },
+      { test: /[a-z]/.test(password), text: 'One lowercase letter' },
+      { test: /\d/.test(password), text: 'One number' },
+      { test: /[!@#$%^&*]/.test(password), text: 'One special character' }
+    ];
+    return requirements;
+  };
+
+  const passwordRequirements = validatePassword(formData.password);
+  const isPasswordValid = passwordRequirements.every(req => req.test);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
     }
-  ];
 
-  const handleStartTest = () => {
-    if (currentTarget && testType) {
-      setIsConnected(true);
-      // Here you would typically make an API call to your FastAPI backend
-      console.log('Starting test:', { target: currentTarget, type: testType });
+    if (!isPasswordValid) {
+      setError('Password does not meet requirements');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Please accept the terms and conditions');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Create target if it doesn't exist
+      if (currentProject) {
+        await targetsAPI.create({
+          project_id: currentProject.id,
+          name: `${testType} - ${currentTarget}`,
+          target_url: targetType === 'website' ? currentTarget : undefined,
+          target_ip: targetType === 'ip' ? currentTarget : undefined,
+          target_type: targetType,
+          status: 'scanning'
+        });
+        
+        // Reload targets
+        await loadTargets(currentProject.id);
+      }
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      onSignup({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <div className="flex items-center space-x-2 mb-6">
-        <Target className="h-5 w-5 text-red-400" />
-        <h2 className="text-lg font-semibold text-white">Target Configuration</h2>
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-8">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="space-y-6">
-        {/* Target Type Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-3">
-            Target Type
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setTargetType('website')}
-              className={`p-3 rounded-lg border transition-all ${
-                targetType === 'website'
-                  ? 'border-red-400 bg-red-400/10 text-red-400'
-                  : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <Globe className="h-5 w-5 mx-auto mb-1" />
-              <span className="text-sm font-medium">Website</span>
-            </button>
-            <button
-              onClick={() => setTargetType('ip')}
-              className={`p-3 rounded-lg border transition-all ${
-                targetType === 'ip'
-                  ? 'border-red-400 bg-red-400/10 text-red-400'
-                  : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              <Server className="h-5 w-5 mx-auto mb-1" />
-              <span className="text-sm font-medium">IP Address</span>
-            </button>
+      <div className="relative w-full max-w-lg">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-red-500/20 rounded-full border border-red-500/30">
+              <Shield className="h-8 w-8 text-red-400" />
+            </div>
           </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Join AI PenTest</h1>
+          <p className="text-gray-400">Request access to advanced penetration testing tools</p>
         </div>
 
-        {/* Target Input */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-3">
-            {targetType === 'website' ? 'Website URL' : 'IP Address'}
-          </label>
-          <input
-            type="text"
-            value={currentTarget}
-            onChange={(e) => setCurrentTarget(e.target.value)}
-            placeholder={targetType === 'website' ? 'https://example.com' : '192.168.1.1'}
-            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-          />
-        </div>
+        {/* Signup Form */}
+        <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-8 shadow-2xl">
+          <div className="flex items-center space-x-2 mb-6">
+            <Terminal className="h-5 w-5 text-red-400" />
+            <h2 className="text-xl font-semibold text-white">Agent Registration</h2>
+          </div>
 
-        {/* Test Type Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-3">
-            Test Type
-          </label>
-          <div className="space-y-3">
-            {testTypes.map((type) => {
-              const Icon = type.icon;
-              return (
-                <button
-                  key={type.id}
-                  onClick={() => setTestType(type.id)}
-                  className={`w-full p-4 rounded-lg border transition-all text-left ${
-                    testType === type.id
-                      ? 'border-red-400 bg-red-400/10'
-                      : 'border-gray-600 bg-gray-700 hover:bg-gray-600'
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <Icon className={`h-5 w-5 mt-0.5 ${type.color}`} />
-                    <div>
-                      <div className="font-medium text-white">{type.label}</div>
-                      <div className="text-sm text-gray-400 mt-1">{type.description}</div>
-                    </div>
+          <div className="space-y-6">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Name Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                      placeholder="John"
+                      required
+                    />
                   </div>
-                </button>
-              );
-            })}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Last Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                      placeholder="Doe"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                    placeholder="agent@pentest.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                    placeholder="Create a strong password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                
+                {/* Password Requirements */}
+                {formData.password && (
+                  <div className="mt-3 space-y-2">
+                    {passwordRequirements.map((req, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <CheckCircle className={`h-4 w-4 ${req.test ? 'text-red-400' : 'text-gray-500'}`} />
+                        <span className={`text-sm ${req.test ? 'text-red-400' : 'text-gray-500'}`}>
+                          {req.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                    placeholder="Confirm your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Terms and Conditions */}
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="w-4 h-4 mt-1 text-red-500 bg-gray-700 border-gray-600 rounded focus:ring-red-400 focus:ring-2"
+                />
+                <label htmlFor="terms" className="text-sm text-gray-300">
+                  I agree to the{' '}
+                  <Link to="/terms" className="text-red-400 hover:text-red-300 transition-colors">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" className="text-red-400 hover:text-red-300 transition-colors">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+
+              {/* Signup Button */}
+              <button
+                type="submit"
+                disabled={!currentTarget || !testType || isLoading}
+                className="w-full py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                {isLoading ? (
+                  <LoadingSpinner size="sm" color="white" />
+                ) : (
+                  <>
+                    <Shield className="h-5 w-5" />
+                    <span>Request Access</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Login Link */}
+            <div className="mt-6 text-center">
+              <p className="text-gray-400">
+                Already have access?{' '}
+                <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
+                  Sign In
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Start Button */}
-        <button
-          onClick={handleStartTest}
-          disabled={!currentTarget || !testType}
-          className="w-full flex items-center justify-center space-x-2 py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors"
-        >
-          <Play className="h-5 w-5" />
-          <span className="font-medium">Start Test</span>
-        </button>
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-500 text-sm">
+            All registrations are reviewed • Secure • Encrypted
+          </p>
+        </div>
       </div>
     </div>
   );
