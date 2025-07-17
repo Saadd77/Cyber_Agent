@@ -1,324 +1,239 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, Lock, Mail, User, Terminal, CheckCircle } from 'lucide-react';
+import { Target, Plus, Globe, Server, Play, Trash2, Edit3 } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { targetsAPI } from '../services/api';
 import { LoadingSpinner } from './common/LoadingSpinner';
 
-interface SignupPageProps {
-  onSignup: (userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  }) => void;
-  currentProject: any;
-}
-
-export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, currentProject }) => {
-  const { loadTargets } = useProject();
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+export const TargetPanel: React.FC = () => {
+  const { currentProject, targets, loadTargets } = useProject();
+  const [showAddForm, setShowAddForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [newTarget, setNewTarget] = useState({
+    name: '',
+    target_url: '',
+    target_ip: '',
+    target_type: 'website' as 'website' | 'ip'
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const validatePassword = (password: string) => {
-    const requirements = [
-      { test: password.length >= 8, text: 'At least 8 characters' },
-      { test: /[A-Z]/.test(password), text: 'One uppercase letter' },
-      { test: /[a-z]/.test(password), text: 'One lowercase letter' },
-      { test: /\d/.test(password), text: 'One number' },
-      { test: /[!@#$%^&*]/.test(password), text: 'One special character' }
-    ];
-    return requirements;
-  };
-
-  const passwordRequirements = validatePassword(formData.password);
-  const isPasswordValid = passwordRequirements.every(req => req.test);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddTarget = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (!isPasswordValid) {
-      setError('Password does not meet requirements');
-      return;
-    }
-
-    if (!acceptedTerms) {
-      setError('Please accept the terms and conditions');
-      return;
-    }
+    if (!currentProject) return;
 
     setIsLoading(true);
+    setError('');
 
     try {
-      // Create target if it doesn't exist
-      if (currentProject) {
-        await targetsAPI.create({
-          project_id: currentProject.id,
-          name: `${testType} - ${currentTarget}`,
-          target_url: targetType === 'website' ? currentTarget : undefined,
-          target_ip: targetType === 'ip' ? currentTarget : undefined,
-          target_type: targetType,
-          status: 'scanning'
-        });
-        
-        // Reload targets
-        await loadTargets(currentProject.id);
-      }
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      onSignup({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password
+      await targetsAPI.create({
+        project_id: currentProject.id,
+        name: newTarget.name,
+        target_url: newTarget.target_type === 'website' ? newTarget.target_url : undefined,
+        target_ip: newTarget.target_type === 'ip' ? newTarget.target_ip : undefined,
+        target_type: newTarget.target_type
       });
+
+      // Reset form
+      setNewTarget({
+        name: '',
+        target_url: '',
+        target_ip: '',
+        target_type: 'website'
+      });
+      setShowAddForm(false);
+
+      // Reload targets
+      await loadTargets(currentProject.id);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      setError(err.response?.data?.detail || 'Failed to add target');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const getTargetIcon = (type: string) => {
+    return type === 'website' ? <Globe className="h-5 w-5" /> : <Server className="h-5 w-5" />;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-400 bg-green-400/10';
+      case 'scanning': return 'text-yellow-400 bg-yellow-400/10';
+      case 'failed': return 'text-red-400 bg-red-400/10';
+      default: return 'text-gray-400 bg-gray-400/10';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-8">
-      {/* Background Effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-500/5 rounded-full blur-3xl"></div>
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-2">
+          <Target className="h-6 w-6 text-red-400" />
+          <h2 className="text-xl font-semibold text-white">Targets</h2>
+          <span className="ml-auto bg-red-400/20 text-red-400 px-2 py-1 rounded-full text-sm">
+            {targets.length} Total
+          </span>
+        </div>
+        
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+        >
+          <Plus className="h-5 w-5" />
+          <span>Add Target</span>
+        </button>
       </div>
 
-      <div className="relative w-full max-w-lg">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="p-3 bg-red-500/20 rounded-full border border-red-500/30">
-              <Shield className="h-8 w-8 text-red-400" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Join AI PenTest</h1>
-          <p className="text-gray-400">Request access to advanced penetration testing tools</p>
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
         </div>
+      )}
 
-        {/* Signup Form */}
-        <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-8 shadow-2xl">
-          <div className="flex items-center space-x-2 mb-6">
-            <Terminal className="h-5 w-5 text-red-400" />
-            <h2 className="text-xl font-semibold text-white">Agent Registration</h2>
-          </div>
+      {/* Add Target Form */}
+      {showAddForm && (
+        <div className="mb-6 p-4 bg-gray-700 rounded-lg border border-gray-600">
+          <h3 className="text-lg font-medium text-white mb-4">Add New Target</h3>
+          
+          <form onSubmit={handleAddTarget} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Name
+              </label>
+              <input
+                type="text"
+                value={newTarget.name}
+                onChange={(e) => setNewTarget(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-red-400"
+                placeholder="My Target"
+                required
+              />
+            </div>
 
-          <div className="space-y-6">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <p className="text-red-400 text-sm">{error}</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Type
+              </label>
+              <select
+                value={newTarget.target_type}
+                onChange={(e) => setNewTarget(prev => ({ ...prev, target_type: e.target.value as 'website' | 'ip' }))}
+                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:border-red-400"
+              >
+                <option value="website">Website</option>
+                <option value="ip">IP Address</option>
+              </select>
+            </div>
+
+            {newTarget.target_type === 'website' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Website URL
+                </label>
+                <input
+                  type="url"
+                  value={newTarget.target_url}
+                  onChange={(e) => setNewTarget(prev => ({ ...prev, target_url: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-red-400"
+                  placeholder="https://example.com"
+                  required
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  IP Address
+                </label>
+                <input
+                  type="text"
+                  value={newTarget.target_ip}
+                  onChange={(e) => setNewTarget(prev => ({ ...prev, target_ip: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-red-400"
+                  placeholder="192.168.1.1"
+                  required
+                />
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    First Name
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                      placeholder="John"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Last Name
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                      placeholder="Doe"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Email Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                    placeholder="agent@pentest.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                    placeholder="Create a strong password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                
-                {/* Password Requirements */}
-                {formData.password && (
-                  <div className="mt-3 space-y-2">
-                    {passwordRequirements.map((req, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <CheckCircle className={`h-4 w-4 ${req.test ? 'text-red-400' : 'text-gray-500'}`} />
-                        <span className={`text-sm ${req.test ? 'text-red-400' : 'text-gray-500'}`}>
-                          {req.text}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Confirm Password Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                    placeholder="Confirm your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Terms and Conditions */}
-              <div className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="w-4 h-4 mt-1 text-red-500 bg-gray-700 border-gray-600 rounded focus:ring-red-400 focus:ring-2"
-                />
-                <label htmlFor="terms" className="text-sm text-gray-300">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-red-400 hover:text-red-300 transition-colors">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" className="text-red-400 hover:text-red-300 transition-colors">
-                    Privacy Policy
-                  </Link>
-                </label>
-              </div>
-
-              {/* Signup Button */}
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="flex-1 py-2 px-4 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
-                disabled={!currentTarget || !testType || isLoading}
-                className="w-full py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
+                disabled={isLoading}
+                className="flex-1 py-2 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
               >
                 {isLoading ? (
                   <LoadingSpinner size="sm" color="white" />
                 ) : (
                   <>
-                    <Shield className="h-5 w-5" />
-                    <span>Request Access</span>
+                    <Plus className="h-4 w-4" />
+                    <span>Add Target</span>
                   </>
                 )}
               </button>
-            </form>
-
-            {/* Login Link */}
-            <div className="mt-6 text-center">
-              <p className="text-gray-400">
-                Already have access?{' '}
-                <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
-                  Sign In
-                </Link>
-              </p>
             </div>
-          </div>
+          </form>
         </div>
+      )}
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-500 text-sm">
-            All registrations are reviewed • Secure • Encrypted
-          </p>
-        </div>
+      {/* Targets List */}
+      <div className="flex-1 overflow-y-auto space-y-4">
+        {targets.length === 0 ? (
+          <div className="text-center py-12">
+            <Target className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-400 mb-2">No targets added</h3>
+            <p className="text-gray-500 mb-6">Add your first target to start security testing</p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors"
+            >
+              Add First Target
+            </button>
+          </div>
+        ) : (
+          targets.map((target) => (
+            <div key={target.id} className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="text-blue-400">
+                    {getTargetIcon(target.target_type)}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{target.name}</h3>
+                    <p className="text-gray-400 text-sm">
+                      {target.target_url || target.target_ip}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(target.status)}`}>
+                    {target.status}
+                  </span>
+                  <button className="p-2 rounded hover:bg-gray-600 transition-colors">
+                    <Play className="h-4 w-4 text-green-400" />
+                  </button>
+                  <button className="p-2 rounded hover:bg-gray-600 transition-colors">
+                    <Edit3 className="h-4 w-4 text-gray-400" />
+                  </button>
+                  <button className="p-2 rounded hover:bg-gray-600 transition-colors">
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                Added: {new Date(target.created_at).toLocaleDateString()}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 };
+</TargetPanel>
