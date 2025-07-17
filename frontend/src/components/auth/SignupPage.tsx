@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Eye, EyeOff, Lock, Mail, User, Terminal, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 
-interface SignupPageProps {
-  onSignup: (userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  }) => void;
-}
-
-export const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
+export const SignupPage: React.FC = () => {
+  const { signup, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -21,9 +15,12 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  React.useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -48,38 +45,32 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
 
     if (!isPasswordValid) {
-      setError('Password does not meet requirements');
+      setLocalError('Password does not meet requirements');
       return;
     }
 
     if (!acceptedTerms) {
-      setError('Please accept the terms and conditions');
+      setLocalError('Please accept the terms and conditions');
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      onSignup({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+      await signup({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         email: formData.email,
         password: formData.password
       });
     } catch (err) {
-      setError('Registration failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+      // Error is handled by the context
     }
   };
 
@@ -111,9 +102,9 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
             <h2 className="text-xl font-semibold text-white">Agent Registration</h2>
           </div>
 
-          {error && (
+          {(error || localError) && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-sm">{error || localError}</p>
             </div>
           )}
 
@@ -269,7 +260,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup }) => {
               className="w-full py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
             >
               {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <LoadingSpinner size="sm" color="white" />
               ) : (
                 <>
                   <Shield className="h-5 w-5" />
