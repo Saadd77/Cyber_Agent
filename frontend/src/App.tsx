@@ -1,336 +1,293 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage } from './components/auth/LoginPage';
-import { SignupPage } from './components/auth/SignupPage';
-import { ProjectSelection } from './components/ProjectSelection';
-import { Sidebar } from './components/Sidebar';
-import { Terminal } from './components/Terminal';
-import { TargetPanel } from './components/TargetPanel';
-import { HistoryPanel } from './components/HistoryPanel';
-import { ReportNotesPanel } from './components/ReportNotesPanel';
-import { MonitorPanel } from './components/MonitorPanel';
-import { StatusBar } from './components/StatusBar';
-import { Header } from './components/Header';
-import { authAPI, projectsAPI } from './services/api';
+import { Link } from 'react-router-dom';
+import { Shield, Eye, EyeOff, Lock, Mail, User, Terminal, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
-interface User {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  currentProjectId?: string;
-}
+export const SignupPage: React.FC = () => {
+  const { signup } = useAuth();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  created_at: Date;
-  last_accessed: Date;
-  target_count: number;
-  status: 'active' | 'completed' | 'paused';
-  project_type: 'network' | 'web' | 'mobile' | 'api';
-}
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
 
-const Dashboard: React.FC<{
-  user: User;
-  currentProject: Project | null;
-  onLogout: () => void;
-}> = ({ user, currentProject, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('terminal');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
-  const [isConnected, setIsConnected] = useState(false);
-  const [currentTarget, setCurrentTarget] = useState('');
-  const [testType, setTestType] = useState('');
+  const validatePassword = (password: string) => {
+    const requirements = [
+      { test: password.length >= 8, text: 'At least 8 characters' },
+      { test: /[A-Z]/.test(password), text: 'One uppercase letter' },
+      { test: /[a-z]/.test(password), text: 'One lowercase letter' },
+      { test: /\d/.test(password), text: 'One number' },
+      { test: /[!@#$%^&*]/.test(password), text: 'One special character' }
+    ];
+    return requirements;
+  };
 
-  const renderMainContent = () => {
-    switch (activeTab) {
-      case 'terminal':
-        return (
-          <div className="h-full p-4">
-            <Terminal isConnected={isConnected} />
-          </div>
-        );
-      case 'target':
-        return (
-          <div className="h-full p-4 overflow-y-auto">
-            <div className="max-w-2xl mx-auto">
-              <TargetPanel 
-                currentTarget={currentTarget}
-                setCurrentTarget={setCurrentTarget}
-                testType={testType}
-                setTestType={setTestType}
-                isConnected={isConnected}
-                setIsConnected={setIsConnected}
-                currentProject={currentProject}
-              />
-            </div>
-          </div>
-        );
-      case 'history':
-        return (
-          <div className="h-full p-4 overflow-y-auto">
-            <div className="max-w-4xl mx-auto">
-              <HistoryPanel />
-            </div>
-          </div>
-        );
-      case 'notes':
-        return (
-          <div className="h-full p-4 overflow-y-auto">
-            <div className="max-w-6xl mx-auto">
-              <ReportNotesPanel />
-            </div>
-          </div>
-        );
-      case 'monitor':
-        return (
-          <div className="h-full p-4 overflow-y-auto">
-            <div className="max-w-6xl mx-auto">
-              <MonitorPanel isConnected={isConnected} />
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center text-gray-400">
-              <h2 className="text-2xl font-bold mb-2">Select a Tool</h2>
-              <p>Choose an option from the sidebar to get started</p>
-            </div>
-          </div>
-        );
+  const passwordRequirements = validatePassword(formData.password);
+  const isPasswordValid = passwordRequirements.every(req => req.test);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setError('Password does not meet requirements');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Please accept the terms and conditions');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await signup({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password
+      });
+    } catch (err) {
+      setError('Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      <Header user={user} currentProject={currentProject} onLogout={onLogout} />
-      
-      <div className="flex-1 flex">
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab}
-          collapsed={sidebarCollapsed}
-          setCollapsed={setSidebarCollapsed}
-          width={sidebarWidth}
-          setWidth={setSidebarWidth}
-        />
-        
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {renderMainContent()}
-          
-          <StatusBar 
-            isConnected={isConnected}
-            currentTarget={currentTarget}
-            testType={testType}
-          />
-        </main>
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 py-8">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-500/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative w-full max-w-lg">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-red-500/20 rounded-full border border-red-500/30">
+              <Shield className="h-8 w-8 text-red-400" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Join AI PenTest</h1>
+          <p className="text-gray-400">Request access to advanced penetration testing tools</p>
+        </div>
+
+        {/* Signup Form */}
+        <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-8 shadow-2xl">
+          <div className="flex items-center space-x-2 mb-6">
+            <Terminal className="h-5 w-5 text-red-400" />
+            <h2 className="text-xl font-semibold text-white">Agent Registration</h2>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  First Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                    placeholder="John"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Last Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                    placeholder="Doe"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                  placeholder="agent@pentest.com"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                  placeholder="Create a strong password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              
+              {/* Password Requirements */}
+              {formData.password && (
+                <div className="mt-3 space-y-2">
+                  {passwordRequirements.map((req, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <CheckCircle className={`h-4 w-4 ${req.test ? 'text-red-400' : 'text-gray-500'}`} />
+                      <span className={`text-sm ${req.test ? 'text-red-400' : 'text-gray-500'}`}>
+                        {req.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
+                  placeholder="Confirm your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="w-4 h-4 mt-1 text-red-500 bg-gray-700 border-gray-600 rounded focus:ring-red-400 focus:ring-2"
+              />
+              <label htmlFor="terms" className="text-sm text-gray-300">
+                I agree to the{' '}
+                <Link to="/terms" className="text-red-400 hover:text-red-300 transition-colors">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" className="text-red-400 hover:text-red-300 transition-colors">
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
+
+            {/* Signup Button */}
+            <button
+              type="submit"
+              disabled={isLoading || !isPasswordValid || !acceptedTerms}
+              className="w-full py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <Shield className="h-5 w-5" />
+                  <span>Request Access</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Login Link */}
+          <div className="mt-6 text-center">
+            <p className="text-gray-400">
+              Already have access?{' '}
+              <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
+                Sign In
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-500 text-sm">
+            All registrations are reviewed • Secure • Encrypted
+          </p>
+        </div>
       </div>
     </div>
   );
 };
-
-function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Simulate checking for existing session
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const storedUser = localStorage.getItem('pentestUser');
-      const storedProject = localStorage.getItem('currentProject');
-      const token = localStorage.getItem('access_token');
-      
-      if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
-      }
-      if (storedProject) {
-        setCurrentProject(JSON.parse(storedProject));
-      }
-      
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, []);
-
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login(email, password);
-      
-      const userData: User = {
-        id: response.user.id,
-        email: response.user.email,
-        first_name: response.user.first_name,
-        last_name: response.user.last_name
-      };
-      
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('pentestUser', JSON.stringify(userData));
-      setUser(userData);
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    }
-  };
-
-  const handleProjectSelect = async (projectId: string) => {
-    try {
-      const project = await projectsAPI.getById(projectId);
-      
-      const projectData: Project = {
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        created_at: new Date(project.created_at),
-        last_accessed: new Date(project.last_accessed),
-        target_count: project.target_count,
-        status: project.status,
-        project_type: project.project_type
-      };
-      
-      localStorage.setItem('currentProject', JSON.stringify(projectData));
-      setCurrentProject(projectData);
-      
-      const updatedUser = { ...user!, currentProjectId: projectId };
-      localStorage.setItem('pentestUser', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('Failed to select project:', error);
-    }
-  };
-
-  const handleCreateProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'last_accessed'>) => {
-    try {
-      const newProject = await projectsAPI.create({
-        name: projectData.name,
-        description: projectData.description,
-        project_type: projectData.project_type,
-        status: projectData.status,
-        target_count: projectData.target_count
-      });
-      
-      const projectDataFormatted: Project = {
-        id: newProject.id,
-        name: newProject.name,
-        description: newProject.description,
-        created_at: new Date(newProject.created_at),
-        last_accessed: new Date(newProject.last_accessed),
-        target_count: newProject.target_count,
-        status: newProject.status,
-        project_type: newProject.project_type
-      };
-      
-      localStorage.setItem('currentProject', JSON.stringify(projectDataFormatted));
-      setCurrentProject(projectDataFormatted);
-      
-      const updatedUser = { ...user!, currentProjectId: newProject.id };
-      localStorage.setItem('pentestUser', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('Failed to create project:', error);
-    }
-  };
-
-  const handleSignup = async (userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-  }) => {
-    try {
-      const response = await authAPI.signup({
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        email: userData.email,
-        password: userData.password
-      });
-      
-      const newUser: User = {
-        id: response.id,
-        email: response.email,
-        first_name: response.first_name,
-        last_name: response.last_name
-      };
-      
-      localStorage.setItem('pentestUser', JSON.stringify(newUser));
-      setUser(newUser);
-    } catch (error) {
-      console.error('Signup failed:', error);
-      throw error;
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('pentestUser');
-    localStorage.removeItem('currentProject');
-    localStorage.removeItem('access_token');
-    setUser(null);
-    setCurrentProject(null);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-red-500/30 border-t-red-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Initializing AI PenTest Platform...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Router>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={
-            user ? <Navigate to="/" replace /> : <LoginPage onLogin={handleLogin} />
-          } 
-        />
-        <Route 
-          path="/signup" 
-          element={
-            user ? <Navigate to="/" replace /> : <SignupPage onSignup={handleSignup} />
-          } 
-        />
-        <Route 
-          path="/" 
-          element={
-            user && currentProject ? (
-              <Dashboard user={user} currentProject={currentProject} onLogout={handleLogout} />
-            ) : user ? (
-              <ProjectSelection 
-                onProjectSelect={handleProjectSelect}
-                onCreateProject={handleCreateProject}
-              />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        />
-        <Route 
-          path="/projects" 
-          element={
-            user ? (
-              <ProjectSelection 
-                onProjectSelect={handleProjectSelect}
-                onCreateProject={handleCreateProject}
-              />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        />
-      </Routes>
-    </Router>
-  );
-}
-
-export default App;
