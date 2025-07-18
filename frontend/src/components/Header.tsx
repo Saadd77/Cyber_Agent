@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, User, Settings, LogOut, FolderOpen } from 'lucide-react';
+import { Shield, User, Settings, LogOut, FolderOpen, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -30,6 +30,10 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ user, currentProject, onLogout }) => {
   const navigate = useNavigate();
 
+  const handleSwitchProject = () => {
+    navigate('/projects');
+  };
+
   return (
     <header className="bg-gray-800 border-b border-gray-700 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -46,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({ user, currentProject, onLogout }
         <div className="flex items-center space-x-4">
           {currentProject && (
             <button 
-              onClick={() => navigate('/projects')}
+              onClick={handleSwitchProject}
               className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors" 
               title="Switch Project"
             >

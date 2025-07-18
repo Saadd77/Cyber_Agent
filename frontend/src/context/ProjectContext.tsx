@@ -31,6 +31,7 @@ interface ProjectContextType {
   createProject: (projectData: any) => Promise<void>;
   loadProjects: () => Promise<void>;
   loadTargets: (projectId: string) => Promise<void>;
+  clearCurrentProject: () => void;
   clearError: () => void;
 }
 
@@ -97,6 +98,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
       setCurrentProject(project);
       localStorage.setItem('currentProject', JSON.stringify(project));
       console.log('ProjectContext: Project selected', project);
+      
+      // Load targets for the selected project
+      await loadTargets(projectId);
     }
     return Promise.resolve();
   };
@@ -152,6 +156,13 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     return Promise.resolve();
   };
 
+  const clearCurrentProject = () => {
+    console.log('ProjectContext: Clearing current project');
+    setCurrentProject(null);
+    setTargets([]);
+    localStorage.removeItem('currentProject');
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -166,6 +177,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     createProject,
     loadProjects,
     loadTargets,
+    clearCurrentProject,
     clearError,
   };
 

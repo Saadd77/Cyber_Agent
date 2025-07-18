@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useProject } from './context/ProjectContext';
 import { LoginPage } from './components/auth/LoginPage';
@@ -14,124 +14,129 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { ReportNotesPanel } from './components/ReportNotesPanel';
 import { MonitorPanel } from './components/MonitorPanel';
 import { LoadingOverlay } from './components/common/LoadingSpinner';
+import { DebugPanel } from './components/DebugPanel';
 
 function App() {
-  const { user, isLoading: authLoading } = useAuth();
-  const { currentProject } = useProject();
+  const { user, isLoading: authLoading, logout } = useAuth();
+  const { currentProject, clearCurrentProject } = useProject();
   const [activeTab, setActiveTab] = useState('terminal');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isConnected] = useState(true);
-  const [debugInfo, setDebugInfo] = useState<any>({});
+  const location = useLocation();
 
   // Debug effect to track state changes
   useEffect(() => {
-    setDebugInfo({
+    console.log('App state:', {
       user: user ? `${user.first_name} ${user.last_name}` : 'null',
       authLoading,
       currentProject: currentProject ? currentProject.name : 'null',
-      timestamp: new Date().toISOString()
+      location: location.pathname
     });
-  }, [user, authLoading, currentProject]);
-
-  // Add console logs for debugging
-  console.log('App render:', { user, authLoading, currentProject });
+  }, [user, authLoading, currentProject, location]);
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingOverlay>Loading application...</LoadingOverlay>
-        </div>
+        <LoadingOverlay>Loading application...</LoadingOverlay>
       </div>
     );
   }
 
-  // Debug panel (remove this in production)
-  const DebugPanel = () => (
-    <div className="fixed bottom-4 right-4 bg-gray-800 border border-gray-600 rounded-lg p-4 text-xs text-white z-50">
-      <h3 className="font-bold mb-2">Debug Info:</h3>
-      <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-    </div>
-  );
-
-  // If not authenticated, show auth pages
-  if (!user) {
-    console.log('Rendering auth routes');
-    return (
-      <div className="min-h-screen bg-gray-900">
-        <DebugPanel />
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </div>
-    );
-  }
-
-  // If authenticated but no project selected, show project selection
-  if (!currentProject) {
-    console.log('Rendering project selection');
-    return (
-      <div className="min-h-screen bg-gray-900">
-        <DebugPanel />
-        <Routes>
-          <Route path="/projects" element={<ProjectSelection />} />
-          <Route path="*" element={<Navigate to="/projects" replace />} />
-        </Routes>
-      </div>
-    );
-  }
-
-  // Main application layout
-  const renderMainContent = () => {
-    switch (activeTab) {
-      case 'terminal':
-        return <Terminal isConnected={isConnected} />;
-      case 'target':
-        return <TargetPanel />;
-      case 'history':
-        return <HistoryPanel />;
-      case 'notes':
-        return <ReportNotesPanel />;
-      case 'monitor':
-        return <MonitorPanel isConnected={isConnected} />;
-      default:
-        return <Terminal isConnected={isConnected} />;
+  // Handle logout properly
+  const handleLogout = () => {
+    logout();
+    if (clearCurrentProject) {
+      clearCurrentProject();
     }
   };
 
-  console.log('Rendering main app');
-  return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      <DebugPanel />
-      <Header 
-        user={user} 
-        currentProject={currentProject} 
-        onLogout={() => window.location.href = '/login'} 
-      />
-      
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          collapsed={sidebarCollapsed}
-          setCollapsed={setSidebarCollapsed}
-          width={sidebarWidth}
-          setWidth={setSidebarWidth}
+  // Main application layout component
+  const MainApp = () => {
+    const renderMainContent = () => {
+      switch (activeTab) {
+        case 'terminal':
+          return <Terminal isConnected={isConnected} />;
+        case 'target':
+          return <TargetPanel />;
+        case 'history':
+          return <HistoryPanel />;
+        case 'notes':
+          return <ReportNotesPanel />;
+        case 'monitor':
+          return <MonitorPanel isConnected={isConnected} />;
+        default:
+          return <Terminal isConnected={isConnected} />;
+      }
+    };
+
+    return (
+      <div className="h-screen flex flex-col bg-gray-900">
+        <Header 
+          user={user!} 
+          currentProject={currentProject} 
+          onLogout={handleLogout} 
         />
         
-        <main className="flex-1 overflow-hidden">
-          {renderMainContent()}
-        </main>
+        <div className="flex-1 flex overflow-hidden">
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            collapsed={sidebarCollapsed}
+            setCollapsed={setSidebarCollapsed}
+            width={sidebarWidth}
+            setWidth={setSidebarWidth}
+          />
+          
+          <main className="flex-1 overflow-hidden">
+            {renderMainContent()}
+          </main>
+        </div>
+        
+        <StatusBar
+          isConnected={isConnected}
+          currentTarget="No target selected"
+          testType="None"
+        />
       </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900">
+      {/* Debug Panel - always available */}
+      <DebugPanel />
       
-      <StatusBar
-        isConnected={isConnected}
-        currentTarget="No target selected"
-        testType="None"
-      />
+      <Routes>
+        {/* Public routes - always accessible */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        
+        {/* Protected routes - require authentication */}
+        {user ? (
+          <>
+            <Route path="/projects" element={<ProjectSelection />} />
+            
+            {/* Main app routes - require both user and project */}
+            {currentProject ? (
+              <>
+                <Route path="/" element={<MainApp />} />
+                <Route path="/terminal" element={<Navigate to="/" replace />} />
+                <Route path="/target" element={<Navigate to="/" replace />} />
+                <Route path="/history" element={<Navigate to="/" replace />} />
+                <Route path="/notes" element={<Navigate to="/" replace />} />
+                <Route path="/monitor" element={<Navigate to="/" replace />} />
+              </>
+            ) : (
+              // If user but no project, redirect to project selection
+              <Route path="*" element={<Navigate to="/projects" replace />} />
+            )}
+          </>
+        ) : (
+          // If no user, redirect to login
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        )}
+      </Routes>
     </div>
   );
 }
