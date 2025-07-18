@@ -235,5 +235,58 @@ export const TargetPanel: React.FC = () => {
       </div>
     </div>
   );
+  // frontend/src/components/TargetPanel.tsx - ADD:
+
+const executeAgent = async (targetId: string, agentType: string) => {
+  if (!currentProject) return;
+  
+  setIsLoading(true);
+  setError('');
+  
+  try {
+    const target = targets.find(t => t.id === targetId);
+    if (!target) throw new Error('Target not found');
+    
+    const response = await agentsAPI.execute({
+      agent_type: agentType,
+      target: target.target_url || target.target_ip || '',
+      project_id: currentProject.id,
+      target_id: targetId,
+      options: {}
+    });
+    
+    // Show success message and maybe navigate to results
+    console.log('Agent execution started:', response);
+    
+  } catch (err: any) {
+    setError(err.response?.data?.detail || 'Failed to execute agent');
+  } finally {
+    setIsLoading(false);
+  }
 };
-</TargetPanel>
+
+// Add agent execution buttons to each target
+<div className="flex items-center space-x-2">
+  <button 
+    onClick={() => executeAgent(target.id, 'web_classifier')}
+    className="p-2 rounded hover:bg-gray-600 transition-colors"
+    title="Web Classification"
+  >
+    <Globe className="h-4 w-4 text-blue-400" />
+  </button>
+  <button 
+    onClick={() => executeAgent(target.id, 'web_pentester')}
+    className="p-2 rounded hover:bg-gray-600 transition-colors"
+    title="Web Penetration Test"
+  >
+    <Shield className="h-4 w-4 text-purple-400" />
+  </button>
+  <button 
+    onClick={() => executeAgent(target.id, 'network_scanner')}
+    className="p-2 rounded hover:bg-gray-600 transition-colors"
+    title="Network Scan"
+  >
+    <Server className="h-4 w-4 text-red-400" />
+  </button>
+</div>
+};

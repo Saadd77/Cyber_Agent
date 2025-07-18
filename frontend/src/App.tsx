@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useProject } from './context/ProjectContext';
@@ -22,29 +22,65 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isConnected] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<any>({});
+
+  // Debug effect to track state changes
+  useEffect(() => {
+    setDebugInfo({
+      user: user ? `${user.first_name} ${user.last_name}` : 'null',
+      authLoading,
+      currentProject: currentProject ? currentProject.name : 'null',
+      timestamp: new Date().toISOString()
+    });
+  }, [user, authLoading, currentProject]);
+
+  // Add console logs for debugging
+  console.log('App render:', { user, authLoading, currentProject });
 
   if (authLoading) {
-    return <LoadingOverlay>Loading application...</LoadingOverlay>;
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <LoadingOverlay>Loading application...</LoadingOverlay>
+        </div>
+      </div>
+    );
   }
+
+  // Debug panel (remove this in production)
+  const DebugPanel = () => (
+    <div className="fixed bottom-4 right-4 bg-gray-800 border border-gray-600 rounded-lg p-4 text-xs text-white z-50">
+      <h3 className="font-bold mb-2">Debug Info:</h3>
+      <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+    </div>
+  );
 
   // If not authenticated, show auth pages
   if (!user) {
+    console.log('Rendering auth routes');
     return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <div className="min-h-screen bg-gray-900">
+        <DebugPanel />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
     );
   }
 
   // If authenticated but no project selected, show project selection
   if (!currentProject) {
+    console.log('Rendering project selection');
     return (
-      <Routes>
-        <Route path="/projects" element={<ProjectSelection />} />
-        <Route path="*" element={<Navigate to="/projects" replace />} />
-      </Routes>
+      <div className="min-h-screen bg-gray-900">
+        <DebugPanel />
+        <Routes>
+          <Route path="/projects" element={<ProjectSelection />} />
+          <Route path="*" element={<Navigate to="/projects" replace />} />
+        </Routes>
+      </div>
     );
   }
 
@@ -66,8 +102,10 @@ function App() {
     }
   };
 
+  console.log('Rendering main app');
   return (
     <div className="h-screen flex flex-col bg-gray-900">
+      <DebugPanel />
       <Header 
         user={user} 
         currentProject={currentProject} 

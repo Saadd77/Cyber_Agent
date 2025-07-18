@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Eye, EyeOff, Lock, Mail, Terminal } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -8,9 +8,10 @@ export const LoginPage: React.FC = () => {
   const { login, isLoading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: 'any-password' // Password doesn't matter
   });
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     clearError();
@@ -25,11 +26,23 @@ export const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Login attempt with:', formData.email);
+    
     try {
       await login(formData);
+      console.log('Login successful, navigating...');
+      navigate('/', { replace: true });
     } catch (err) {
-      // Error is handled by the context
+      console.error('Login failed:', err);
     }
+  };
+
+  // Quick login buttons for testing
+  const quickLogin = (email: string) => {
+    setFormData({ email, password: 'test' });
+    login({ email, password: 'test' }).then(() => {
+      navigate('/', { replace: true });
+    }).catch(console.error);
   };
 
   return (
@@ -49,14 +62,46 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">AI PenTest Platform</h1>
-          <p className="text-gray-400">Access your penetration testing environment</p>
+          <p className="text-gray-400">Enter any valid email to access the platform</p>
         </div>
 
         {/* Login Form */}
         <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-8 shadow-2xl">
           <div className="flex items-center space-x-2 mb-6">
             <Terminal className="h-5 w-5 text-red-400" />
-            <h2 className="text-xl font-semibold text-white">Agent Login</h2>
+            <h2 className="text-xl font-semibold text-white">Quick Access</h2>
+          </div>
+
+          {/* Quick Login Buttons */}
+          <div className="mb-6 space-y-2">
+            <p className="text-sm text-gray-400 mb-3">Quick login options:</p>
+            <button
+              onClick={() => quickLogin('admin@demo.com')}
+              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+            >
+              Login as admin@demo.com
+            </button>
+            <button
+              onClick={() => quickLogin('tester@demo.com')}
+              className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+            >
+              Login as tester@demo.com
+            </button>
+            <button
+              onClick={() => quickLogin('user@demo.com')}
+              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
+            >
+              Login as user@demo.com
+            </button>
+          </div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-gray-800 px-3 text-gray-400">Or enter custom email</span>
+            </div>
           </div>
 
           {error && (
@@ -79,16 +124,19 @@ export const LoginPage: React.FC = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                  placeholder="agent@pentest.com"
+                  placeholder="your-email@example.com"
                   required
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Any valid email format will work (password is ignored)
+              </p>
             </div>
 
-            {/* Password Field */}
+            {/* Password Field (Optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Password
+                Password (Optional)
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -98,8 +146,7 @@ export const LoginPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full pl-10 pr-12 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-red-400 focus:ring-1 focus:ring-red-400 transition-colors"
-                  placeholder="Enter your password"
-                  required
+                  placeholder="Enter any password"
                 />
                 <button
                   type="button"
@@ -131,9 +178,9 @@ export const LoginPage: React.FC = () => {
           {/* Signup Link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400">
-              Need access?{' '}
+              Want to try signup?{' '}
               <Link to="/signup" className="text-red-400 hover:text-red-300 font-medium transition-colors">
-                Request Account
+                Create Account
               </Link>
             </p>
           </div>
@@ -142,7 +189,7 @@ export const LoginPage: React.FC = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-gray-500 text-sm">
-            Secure • Encrypted • Monitored
+            Demo Mode • No Database Required
           </p>
         </div>
       </div>
